@@ -1,0 +1,284 @@
+import java.util.*;
+import java.io.*;
+
+// Custom Exception
+class StudentNotFoundException extends Exception {
+    public StudentNotFoundException(String message) {
+        super(message);
+    }
+}
+
+// Student class
+class Student {
+    private int rollNumber;
+    private String name;
+    private Map<String, Double> marks;
+
+    public Student(int rollNumber, String name) {
+        this.rollNumber = rollNumber;
+        this.name = name;
+        this.marks = new LinkedHashMap<>();
+    }
+
+    public void addMark(String subject, double mark) {
+        marks.put(subject, mark);
+    }
+
+    public double getAverage() {
+        if (marks.isEmpty()) return 0;
+        double total = 0;
+        for (double m : marks.values()) total += m;
+        return total / marks.size();
+    }
+
+    public String getGrade() {
+        double avg = getAverage();
+        if (avg >= 90) return "O (Outstanding)";
+        else if (avg >= 80) return "A+ (Excellent)";
+        else if (avg >= 70) return "A (Very Good)";
+        else if (avg >= 60) return "B+ (Good)";
+        else if (avg >= 50) return "B (Average)";
+        else if (avg >= 40) return "C (Pass)";
+        else return "F (Fail)";
+    }
+
+    public int getRollNumber() { return rollNumber; }
+    public String getName() { return name; }
+    public Map<String, Double> getMarks() { return marks; }
+
+    @Override
+    public String toString() {
+        return String.format("Roll: %d | Name: %-20s | Avg: %5.2f | Grade: %s",
+                rollNumber, name, getAverage(), getGrade());
+    }
+
+    public String toFileString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(rollNumber).append(",").append(name);
+        for (Map.Entry<String, Double> e : marks.entrySet()) {
+            sb.append(",").append(e.getKey()).append(":").append(e.getValue());
+        }
+        return sb.toString();
+    }
+}
+
+// Main application
+public class StudentResultManagement {
+
+    private static List<Student> students = new ArrayList<>();
+    private static Scanner scanner = new Scanner(System.in);
+    private static final String FILE_NAME = "students_data.csv";
+
+    public static void main(String[] args) {
+        loadFromFile();
+        System.out.println("\n╔══════════════════════════════════════╗");
+        System.out.println("║   Student Result Management System   ║");
+        System.out.println("╚══════════════════════════════════════╝");
+
+        while (true) {
+            System.out.println("\n--- MENU ---");
+            System.out.println("1. Add Student");
+            System.out.println("2. Enter Marks for Student");
+            System.out.println("3. View All Students");
+            System.out.println("4. Search Student");
+            System.out.println("5. Delete Student");
+            System.out.println("6. Generate Report");
+            System.out.println("7. Exit");
+            System.out.print("Choose option: ");
+
+            int choice = getIntInput();
+            switch (choice) {
+                case 1: addStudent(); break;
+                case 2: enterMarks(); break;
+                case 3: viewAllStudents(); break;
+                case 4: searchStudent(); break;
+                case 5: deleteStudent(); break;
+                case 6: generateReport(); break;
+                case 7:
+                    saveToFile();
+                    System.out.println("Data saved. Goodbye!");
+                    return;
+                default:
+                    System.out.println("Invalid option. Try again.");
+            }
+        }
+    }
+
+    static void addStudent() {
+        System.out.print("Enter Roll Number: ");
+        int roll = getIntInput();
+        for (Student s : students) {
+            if (s.getRollNumber() == roll) {
+                System.out.println("Student with roll number " + roll + " already exists.");
+                return;
+            }
+        }
+        System.out.print("Enter Student Name: ");
+        String name = scanner.nextLine().trim();
+        if (name.isEmpty()) { System.out.println("Name cannot be empty."); return; }
+        students.add(new Student(roll, name));
+        System.out.println("Student added successfully.");
+    }
+
+    static void enterMarks() {
+        System.out.print("Enter Roll Number: ");
+        int roll = getIntInput();
+        try {
+            Student s = findStudent(roll);
+            System.out.print("How many subjects? ");
+            int count = getIntInput();
+            for (int i = 0; i < count; i++) {
+                System.out.print("Subject " + (i + 1) + " name: ");
+                String sub = scanner.nextLine().trim();
+                double mark = -1;
+                while (mark < 0 || mark > 100) {
+                    System.out.print("Marks (0-100): ");
+                    try { mark = Double.parseDouble(scanner.nextLine().trim()); }
+                    catch (NumberFormatException e) { mark = -1; }
+                    if (mark < 0 || mark > 100) System.out.println("Please enter a valid mark between 0 and 100.");
+                }
+                s.addMark(sub, mark);
+            }
+            System.out.println("Marks entered successfully.");
+        } catch (StudentNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    static void viewAllStudents() {
+        if (students.isEmpty()) { System.out.println("No students found."); return; }
+        System.out.println("\n--- ALL STUDENTS ---");
+        System.out.println("-".repeat(70));
+        for (Student s : students) System.out.println(s);
+        System.out.println("-".repeat(70));
+        System.out.println("Total students: " + students.size());
+    }
+
+    static void searchStudent() {
+        System.out.println("Search by: 1. Roll Number  2. Name");
+        System.out.print("Choice: ");
+        int choice = getIntInput();
+        try {
+            if (choice == 1) {
+                System.out.print("Enter Roll Number: ");
+                int roll = getIntInput();
+                Student s = findStudent(roll);
+                printDetailedReport(s);
+            } else if (choice == 2) {
+                System.out.print("Enter Name (partial ok): ");
+                String name = scanner.nextLine().trim().toLowerCase();
+                boolean found = false;
+                for (Student s : students) {
+                    if (s.getName().toLowerCase().contains(name)) {
+                        printDetailedReport(s);
+                        found = true;
+                    }
+                }
+                if (!found) System.out.println("No student found with name: " + name);
+            }
+        } catch (StudentNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    static void deleteStudent() {
+        System.out.print("Enter Roll Number to delete: ");
+        int roll = getIntInput();
+        Iterator<Student> it = students.iterator();
+        while (it.hasNext()) {
+            if (it.next().getRollNumber() == roll) {
+                it.remove();
+                System.out.println("Student deleted.");
+                return;
+            }
+        }
+        System.out.println("Student not found.");
+    }
+
+    static void generateReport() {
+        if (students.isEmpty()) { System.out.println("No data to report."); return; }
+        String filename = "Result_Report.txt";
+        try (PrintWriter pw = new PrintWriter(new FileWriter(filename))) {
+            pw.println("================================================");
+            pw.println("        STUDENT RESULT REPORT");
+            pw.println("================================================");
+            pw.printf("%-6s %-20s %-8s %-6s%n", "Roll", "Name", "Average", "Grade");
+            pw.println("-".repeat(48));
+            double classTotal = 0;
+            int passCount = 0;
+            for (Student s : students) {
+                pw.printf("%-6d %-20s %-8.2f %-6s%n",
+                        s.getRollNumber(), s.getName(), s.getAverage(), s.getGrade());
+                classTotal += s.getAverage();
+                if (s.getAverage() >= 40) passCount++;
+            }
+            pw.println("-".repeat(48));
+            pw.printf("Class Average : %.2f%n", classTotal / students.size());
+            pw.printf("Pass Count    : %d / %d%n", passCount, students.size());
+            pw.println("================================================");
+            System.out.println("Report saved to " + filename);
+        } catch (IOException e) {
+            System.out.println("Error writing report: " + e.getMessage());
+        }
+    }
+
+    static void printDetailedReport(Student s) {
+        System.out.println("\n--- Student Detail ---");
+        System.out.println("Roll Number : " + s.getRollNumber());
+        System.out.println("Name        : " + s.getName());
+        if (!s.getMarks().isEmpty()) {
+            System.out.println("Marks:");
+            for (Map.Entry<String, Double> e : s.getMarks().entrySet()) {
+                System.out.printf("  %-20s : %.2f%n", e.getKey(), e.getValue());
+            }
+            System.out.printf("Average     : %.2f%n", s.getAverage());
+            System.out.println("Grade       : " + s.getGrade());
+        } else {
+            System.out.println("No marks entered yet.");
+        }
+    }
+
+    static Student findStudent(int roll) throws StudentNotFoundException {
+        for (Student s : students)
+            if (s.getRollNumber() == roll) return s;
+        throw new StudentNotFoundException("Student with roll number " + roll + " not found.");
+    }
+
+    static int getIntInput() {
+        while (true) {
+            try {
+                return Integer.parseInt(scanner.nextLine().trim());
+            } catch (NumberFormatException e) {
+                System.out.print("Invalid input. Enter a number: ");
+            }
+        }
+    }
+
+    static void saveToFile() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(FILE_NAME))) {
+            for (Student s : students) pw.println(s.toFileString());
+        } catch (IOException e) {
+            System.out.println("Warning: Could not save data.");
+        }
+    }
+
+    static void loadFromFile() {
+        File f = new File(FILE_NAME);
+        if (!f.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length < 2) continue;
+                Student s = new Student(Integer.parseInt(parts[0]), parts[1]);
+                for (int i = 2; i < parts.length; i++) {
+                    String[] kv = parts[i].split(":");
+                    if (kv.length == 2) s.addMark(kv[0], Double.parseDouble(kv[1]));
+                }
+                students.add(s);
+            }
+        } catch (IOException | NumberFormatException e) {
+            System.out.println("Note: Could not load previous data.");
+        }
+    }
+}
