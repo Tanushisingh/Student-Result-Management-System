@@ -1,7 +1,5 @@
+Student Result Management System - Java Project
 
-====================================================
-  Student Result Management System - Java Project
-====================================================
 
 DESCRIPTION:
   A console-based application to manage student academic
