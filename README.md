@@ -1,5 +1,5 @@
-Student Result Management System - Java Project
-
+STUDENT RESULT MANAGEMENT SYSTEM - JAVA PROJECT
+-----------------------------------------------------------------------------------------------------------------------------
 
 DESCRIPTION:
   A console-based application to manage student academic
@@ -38,5 +38,5 @@ CONCEPTS USED:
   - Iterator pattern
   - Input validation
 
-AUTHOR: [Your Name]
+AUTHOR: Tanushi Singh,
 TECHNOLOGY: Java SE
